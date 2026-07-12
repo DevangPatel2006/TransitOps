@@ -13,7 +13,7 @@ const requireRole = require('../../middleware/requireRole');
 const router = express.Router();
 
 router.use(authenticate);
-
+//auth checked
 router.get('/', validate(queryTripSchema), tripsController.getTrips);
 router.post('/', requireRole('FLEET_MANAGER', 'DRIVER_OPS'), validate(createTripSchema), tripsController.createTrip);
 

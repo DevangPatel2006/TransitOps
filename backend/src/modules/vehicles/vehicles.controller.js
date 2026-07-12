@@ -15,7 +15,7 @@ const getVehicleById = asyncHandler(async (req, res) => {
   const vehicle = await vehiclesService.getVehicleById(req.params.id);
   res.status(200).json(vehicle);
 });
-
+//ID From data
 const updateVehicle = asyncHandler(async (req, res) => {
   const vehicle = await vehiclesService.updateVehicle(req.params.id, req.body);
   res.status(200).json(vehicle);

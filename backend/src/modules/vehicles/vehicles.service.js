@@ -12,7 +12,7 @@ const getVehicles = async (filters = {}) => {
       equals: region,
       mode: 'insensitive',
     };
-  }
+  }//{}
 
   if (search) {
     where.OR = [
@@ -35,7 +35,7 @@ const createVehicle = async (data) => {
   }
 
   return await prisma.vehicle.create({ data });
-};
+};//checked
 
 const getVehicleById = async (id) => {
   const vehicle = await prisma.vehicle.findUnique({ where: { vehicle_id: id } });
