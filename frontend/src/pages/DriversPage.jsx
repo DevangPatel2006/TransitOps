@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Edit2, Shield, Calendar, Phone } from 'lucide-react';
+import { Plus, Edit2, Shield, Calendar, Phone, Search, AlertCircle, Bell, Mail, RefreshCw, Loader2 } from 'lucide-react';
 import { getDrivers, updateDriverStatus } from '../api/drivers.api';
+import { getExpiringLicenses, triggerExpiryCheck } from '../api/notifications.api';
 import DataTable from '../components/common/DataTable';
 import StatusBadge from '../components/common/StatusBadge';
 import { useToast } from '../components/common/Toast';
@@ -27,6 +28,43 @@ export default function DriversPage() {
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState(null);
+
+  // Expiring licenses states
+  const [expiringLicenses, setExpiringLicenses] = useState([]);
+  const [expiryDays, setExpiryDays] = useState(30);
+  const [triggeringCheck, setTriggeringCheck] = useState(false);
+  const [loadingExpiring, setLoadingExpiring] = useState(false);
+
+  const fetchExpiringLicenses = useCallback(async () => {
+    const isManagerOrSafety = user?.role?.name === 'FLEET_MANAGER' || user?.role?.name === 'SAFETY_OFFICER';
+    if (!isManagerOrSafety) return;
+    setLoadingExpiring(true);
+    try {
+      const res = await getExpiringLicenses(expiryDays);
+      setExpiringLicenses(res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch expiring licenses', err);
+    } finally {
+      setLoadingExpiring(false);
+    }
+  }, [expiryDays, user]);
+
+  useEffect(() => {
+    fetchExpiringLicenses();
+  }, [fetchExpiringLicenses]);
+
+  const handleTriggerExpiryCheck = async () => {
+    setTriggeringCheck(true);
+    try {
+      await triggerExpiryCheck();
+      toast.success('License expiry checks executed successfully. Alerts sent.');
+      fetchExpiringLicenses();
+    } catch (err) {
+      toast.error('Failed to trigger license expiry check.');
+    } finally {
+      setTriggeringCheck(false);
+    }
+  };
 
   // Debounce search input
   useEffect(() => {
@@ -102,6 +140,14 @@ export default function DriversPage() {
     return new Date(expiryDate) < new Date();
   };
 
+  const checkLicenseExpiringSoon = (expiryDate, days = 30) => {
+    if (!expiryDate) return false;
+    const exp = new Date(expiryDate);
+    const now = new Date();
+    const limit = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    return exp >= now && exp <= limit;
+  };
+
   // Format date helper
   const formatDate = (dateString) => {
     if (!dateString) return '—';
@@ -169,14 +215,20 @@ export default function DriversPage() {
         sortable: true,
         render: (row) => {
           const isExpired = checkLicenseExpired(row.license_expiry);
+          const isExpiringSoon = !isExpired && checkLicenseExpiringSoon(row.license_expiry, expiryDays);
           return (
             <div className="flex items-center gap-1.5">
-              <span className={isExpired ? 'text-status-retired font-medium' : 'text-content-primary'}>
+              <span className={isExpired ? 'text-status-retired font-medium' : isExpiringSoon ? 'text-status-in-shop font-medium' : 'text-content-primary'}>
                 {formatDate(row.license_expiry)}
               </span>
               {isExpired && (
                 <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 bg-status-retired-bg text-status-retired border border-status-retired/20 rounded">
                   EXPIRED
+                </span>
+              )}
+              {isExpiringSoon && (
+                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 bg-status-in-shop-bg text-status-in-shop border border-status-in-shop/20 rounded">
+                  EXPIRING SOON
                 </span>
               )}
             </div>
@@ -319,58 +371,114 @@ export default function DriversPage() {
           />
         </div>
 
-        {/* Custom row selection display for selection status updates */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 rounded-[10px] bg-surface-card border border-border-hairline">
-          <div>
-            <p className="text-sm font-semibold text-content-primary">
-              {selectedDriver ? `Selected: ${selectedDriver.full_name}` : 'Select a driver row from the table above to configure status'}
-            </p>
-            {selectedDriver && (
-              <div className="flex gap-4 mt-1 text-xs text-content-muted">
-                <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> {selectedDriver.contact_number}</span>
-                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Expiry: {formatDate(selectedDriver.license_expiry)}</span>
+        {/* Selection & Expiring Alerts Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Custom row selection display for selection status updates */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 rounded-[10px] bg-surface-card border border-border-hairline h-fit">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-content-primary">
+                {selectedDriver ? `Selected: ${selectedDriver.full_name}` : 'Select a driver row from the table above to configure status'}
+              </p>
+              {selectedDriver && (
+                <div className="flex gap-4 mt-1 text-xs text-content-muted">
+                  <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> {selectedDriver.contact_number}</span>
+                  <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Expiry: {formatDate(selectedDriver.license_expiry)}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Toggle status buttons (visible ONLY for Safety Officer) */}
+            {isSafetyOfficer && (
+              <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
+                <button
+                  disabled={!selectedDriver}
+                  onClick={() => handleStatusToggle('AVAILABLE')}
+                  className={`h-9 px-3.5 rounded-[10px] text-xs font-semibold transition-all border border-border-hairline
+                    ${selectedDriver?.status === 'AVAILABLE' ? 'bg-status-available text-white border-transparent' : 'bg-surface-base text-content-primary hover:bg-surface-elevated disabled:opacity-40'}`}
+                >
+                  Available
+                </button>
+                <button
+                  disabled={!selectedDriver}
+                  onClick={() => handleStatusToggle('ON_TRIP')}
+                  className={`h-9 px-3.5 rounded-[10px] text-xs font-semibold transition-all border border-border-hairline
+                    ${selectedDriver?.status === 'ON_TRIP' ? 'bg-status-on-trip text-white border-transparent' : 'bg-surface-base text-content-primary hover:bg-surface-elevated disabled:opacity-40'}`}
+                >
+                  On Trip
+                </button>
+                <button
+                  disabled={!selectedDriver}
+                  onClick={() => handleStatusToggle('OFF_DUTY')}
+                  className={`h-9 px-3.5 rounded-[10px] text-xs font-semibold transition-all border border-border-hairline
+                    ${selectedDriver?.status === 'OFF_DUTY' ? 'bg-surface-elevated text-content-primary border-border-subtle' : 'bg-surface-base text-content-primary hover:bg-surface-elevated disabled:opacity-40'}`}
+                >
+                  Off Duty
+                </button>
+                <button
+                  disabled={!selectedDriver}
+                  onClick={() => handleStatusToggle('SUSPENDED')}
+                  className={`h-9 px-3.5 rounded-[10px] text-xs font-semibold transition-all border border-border-hairline
+                    ${selectedDriver?.status === 'SUSPENDED' ? 'bg-status-retired text-white border-transparent' : 'bg-surface-base text-content-primary hover:bg-surface-elevated disabled:opacity-40'}`}
+                >
+                  Suspended
+                </button>
               </div>
             )}
           </div>
 
-          {/* Toggle status buttons (visible ONLY for Safety Officer) */}
-          {isSafetyOfficer && (
-            <div className="flex flex-wrap gap-2">
-              <span className="flex items-center gap-1 text-xs font-semibold text-content-muted uppercase tracking-wider mr-2">
-                <Shield className="w-3.5 h-3.5" /> Toggle status:
-              </span>
-              <button
-                disabled={!selectedDriver}
-                onClick={() => handleStatusToggle('AVAILABLE')}
-                className={`h-9 px-3.5 rounded-[10px] text-xs font-semibold transition-all border border-border-hairline
-                  ${selectedDriver?.status === 'AVAILABLE' ? 'bg-status-available text-white border-transparent' : 'bg-surface-base text-content-primary hover:bg-surface-elevated disabled:opacity-40'}`}
-              >
-                Available
-              </button>
-              <button
-                disabled={!selectedDriver}
-                onClick={() => handleStatusToggle('ON_TRIP')}
-                className={`h-9 px-3.5 rounded-[10px] text-xs font-semibold transition-all border border-border-hairline
-                  ${selectedDriver?.status === 'ON_TRIP' ? 'bg-status-on-trip text-white border-transparent' : 'bg-surface-base text-content-primary hover:bg-surface-elevated disabled:opacity-40'}`}
-              >
-                On Trip
-              </button>
-              <button
-                disabled={!selectedDriver}
-                onClick={() => handleStatusToggle('OFF_DUTY')}
-                className={`h-9 px-3.5 rounded-[10px] text-xs font-semibold transition-all border border-border-hairline
-                  ${selectedDriver?.status === 'OFF_DUTY' ? 'bg-surface-elevated text-content-primary border-border-subtle' : 'bg-surface-base text-content-primary hover:bg-surface-elevated disabled:opacity-40'}`}
-              >
-                Off Duty
-              </button>
-              <button
-                disabled={!selectedDriver}
-                onClick={() => handleStatusToggle('SUSPENDED')}
-                className={`h-9 px-3.5 rounded-[10px] text-xs font-semibold transition-all border border-border-hairline
-                  ${selectedDriver?.status === 'SUSPENDED' ? 'bg-status-retired text-white border-transparent' : 'bg-surface-base text-content-primary hover:bg-surface-elevated disabled:opacity-40'}`}
-              >
-                Suspended
-              </button>
+          {/* Expiring Licenses Panel */}
+          {isManagerOrSafety && (
+            <div className="p-4 rounded-[10px] bg-surface-card border border-border-hairline flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-accent" />
+                  <h3 className="text-sm font-semibold text-content-primary">Expiring Licenses Warning</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={expiryDays}
+                    onChange={(e) => setExpiryDays(Number(e.target.value))}
+                    className="h-8 px-2 rounded-[10px] bg-surface-base border border-border-hairline text-xs text-content-primary cursor-pointer outline-none"
+                  >
+                    <option value={7}>7 Days</option>
+                    <option value={15}>15 Days</option>
+                    <option value={30}>30 Days</option>
+                    <option value={90}>90 Days</option>
+                  </select>
+                  <button
+                    onClick={handleTriggerExpiryCheck}
+                    disabled={triggeringCheck}
+                    className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-[10px] bg-accent hover:bg-accent-hover text-white text-xs font-semibold disabled:opacity-50 transition-colors"
+                    title="Trigger Expiry Reminder Check"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${triggeringCheck ? 'animate-spin' : ''}`} />
+                    <span>Trigger Check</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto max-h-48 space-y-2 pr-1">
+                {loadingExpiring ? (
+                  <div className="flex items-center justify-center py-6 text-xs text-content-muted">
+                    <Loader2 className="w-4 h-4 animate-spin text-accent mr-1.5" />
+                    Loading...
+                  </div>
+                ) : expiringLicenses.length === 0 ? (
+                  <p className="text-xs text-content-muted py-6 text-center">No licenses expiring in the next {expiryDays} days.</p>
+                ) : (
+                  expiringLicenses.map((d) => (
+                    <div key={d.driver_id} className="flex items-center justify-between p-2 rounded bg-surface-base border border-border-hairline text-xs">
+                      <div>
+                        <p className="font-semibold text-content-primary">{d.full_name}</p>
+                        <p className="text-[10px] text-content-muted">License: {d.license_number} ({d.license_category})</p>
+                      </div>
+                      <span className="font-semibold text-status-in-shop">
+                        {formatDate(d.license_expiry)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>

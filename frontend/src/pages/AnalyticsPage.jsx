@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { BarChart3, Download, Info, Loader2, Landmark } from 'lucide-react';
-import { getFuelEfficiency, getUtilization, getRoi, exportReportCsv } from '../api/reports.api';
+import { getFuelEfficiency, getUtilization, getRoi, exportReportCsv, exportReportPdf } from '../api/reports.api';
+import { getCostTrend, getFleetUtilizationTrend } from '../api/analytics.api';
 import { getTrips } from '../api/trips.api';
 import { useToast } from '../components/common/Toast';
 import { useAuth } from '../context/AuthContext';
@@ -44,6 +45,8 @@ export default function AnalyticsPage() {
   const [utilization, setUtilization] = useState(null);
   const [roiData, setRoiData] = useState([]);
   const [trips, setTrips] = useState([]);
+  const [costTrend, setCostTrend] = useState([]);
+  const [utilizationTrend, setUtilizationTrend] = useState([]);
 
   // Load state
   const [loading, setLoading] = useState(true);
@@ -54,16 +57,20 @@ export default function AnalyticsPage() {
   const fetchReportData = useCallback(async () => {
     setLoading(true);
     try {
-      const [effRes, utilRes, roiRes, tripsRes] = await Promise.all([
+      const [effRes, utilRes, roiRes, tripsRes, costTrendRes, utilTrendRes] = await Promise.all([
         getFuelEfficiency(),
         getUtilization(),
         getRoi(),
         getTrips(),
+        getCostTrend(6),
+        getFleetUtilizationTrend(7),
       ]);
       setEfficiencyData(effRes.data || []);
       setUtilization(utilRes.data || null);
       setRoiData(roiRes.data || []);
       setTrips(tripsRes.data || []);
+      setCostTrend(costTrendRes.data || []);
+      setUtilizationTrend(utilTrendRes.data || []);
     } catch {
       toast.error('Failed to load report analytics.');
     } finally {
@@ -98,32 +105,7 @@ export default function AnalyticsPage() {
     };
   }, [efficiencyData, roiData]);
 
-  // Group trips by Month for Monthly Revenue chart
-  const revenueChartData = useMemo(() => {
-    const completedTrips = trips.filter((t) => t.status === 'COMPLETED' && t.completed_at);
-    
-    // Group
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthlySum = {};
 
-    completedTrips.forEach((t) => {
-      const date = new Date(t.completed_at);
-      const mLabel = months[date.getMonth()];
-      monthlySum[mLabel] = (monthlySum[mLabel] || 0) + Number(t.revenue || 0);
-    });
-
-    // Format for Recharts
-    const data = months.map((m) => ({
-      name: m,
-      Revenue: monthlySum[m] || 0,
-    }));
-
-    // Filter out trailing zero months for a cleaner view
-    const lastNonZeroIdx = [...data].reverse().findIndex((d) => d.Revenue > 0);
-    if (lastNonZeroIdx === -1) return data.slice(0, 3); // show default 3 months if empty
-    const limit = data.length - lastNonZeroIdx;
-    return data.slice(0, Math.max(3, limit));
-  }, [trips]);
 
   // Top Costliest Vehicles: total cost = maint + fuel from ROI report
   const costliestVehicles = useMemo(() => {
@@ -163,6 +145,31 @@ export default function AnalyticsPage() {
     }
   };
 
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  // Export PDF handler
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    try {
+      const response = await exportReportPdf(exportType);
+      
+      // Handle file download from blob response
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `transitops_${exportType}_report.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`${exportType.toUpperCase()} PDF report exported successfully.`);
+    } catch {
+      toast.error('Failed to export PDF report.');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   const formatCurrency = (val) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
   };
@@ -177,7 +184,7 @@ export default function AnalyticsPage() {
           <p className="text-sm text-content-muted">Financial ROI metrics, fleet usage patterns, and data exports</p>
         </div>
         
-        {/* CSV Export tool */}
+        {/* CSV & PDF Export tool */}
         {canExportCsv ? (
           <div className="flex items-center gap-2 bg-surface-card p-2 rounded-[10px] border border-border-hairline">
             <select
@@ -193,10 +200,18 @@ export default function AnalyticsPage() {
             <button
               onClick={handleExportCsv}
               disabled={exporting}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-[10px] bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-[10px] bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition-colors disabled:opacity-50"
             >
               {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
               Export CSV
+            </button>
+            <button
+              onClick={handleExportPdf}
+              disabled={exportingPdf}
+              className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-[10px] bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              {exportingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              Export PDF
             </button>
           </div>
         ) : (
@@ -244,9 +259,9 @@ export default function AnalyticsPage() {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Monthly Revenue chart */}
+        {/* Monthly Operational Costs chart */}
         <div className="bg-surface-card p-5 rounded-[10px] border border-border-hairline">
-          <h3 className="text-sm font-semibold text-content-primary mb-6">Monthly Revenue</h3>
+          <h3 className="text-sm font-semibold text-content-primary mb-6">Monthly Operational Costs</h3>
           <div className="h-64 w-full">
             {loading ? (
               <div className="h-full flex items-center justify-center">
@@ -254,22 +269,49 @@ export default function AnalyticsPage() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="name" stroke="#94A3B8" fontSize={11} tickLine={false} />
+                <BarChart data={costTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="label" stroke="#94A3B8" fontSize={11} tickLine={false} />
                   <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#15151B', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '10px' }}
                     labelStyle={{ color: '#F1F5F9', fontWeight: 'bold' }}
                   />
-                  <Bar dataKey="Revenue" fill="#D97706" radius={[4, 4, 0, 0]} barSize={36} />
+                  <Legend verticalAlign="top" height={36} iconType="circle" />
+                  <Bar dataKey="fuel_cost" name="Fuel" fill="#D97706" stackId="a" />
+                  <Bar dataKey="maintenance_cost" name="Maintenance" fill="#3B82F6" stackId="a" />
+                  <Bar dataKey="expense_cost" name="Other Expenses" fill="#10B981" stackId="a" />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
         </div>
 
+        {/* Fleet Utilization Trend chart */}
+        <div className="bg-surface-card p-5 rounded-[10px] border border-border-hairline">
+          <h3 className="text-sm font-semibold text-content-primary mb-6">Fleet Utilization Trend (%)</h3>
+          <div className="h-64 w-full">
+            {loading ? (
+              <div className="h-full flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-accent" />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={utilizationTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="label" stroke="#94A3B8" fontSize={11} tickLine={false} />
+                  <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} domain={[0, 100]} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#15151B', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '10px' }}
+                    labelStyle={{ color: '#F1F5F9', fontWeight: 'bold' }}
+                  />
+                  <Line type="monotone" dataKey="utilization" name="Utilization %" stroke="#3B82F6" strokeWidth={2} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
         {/* Top Costliest Vehicles list */}
-        <div className="bg-surface-card p-5 rounded-[10px] border border-border-hairline flex flex-col justify-between">
+        <div className="bg-surface-card p-5 rounded-[10px] border border-border-hairline flex flex-col justify-between lg:col-span-2">
           <div className="mb-4">
             <h3 className="text-sm font-semibold text-content-primary mb-1">Top Costliest Vehicles</h3>
             <p className="text-[11px] text-content-muted">Ranked by combined maintenance and fuel log expenses</p>

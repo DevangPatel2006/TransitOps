@@ -31,3 +31,13 @@ export function exportReportCsv(type) {
     responseType: 'blob', // critical for file downloads
   });
 }
+
+/**
+ * Export specific dataset (vehicles, drivers, trips, costs) as a PDF document.
+ */
+export function exportReportPdf(type) {
+  return axiosClient.get('/reports/export/pdf', {
+    params: { type },
+    responseType: 'blob', // critical for file downloads
+  });
+}

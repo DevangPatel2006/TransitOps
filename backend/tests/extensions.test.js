@@ -21,6 +21,9 @@ describe('TransitOps Extensions Integration Tests', () => {
     // 1. Clear tables
     await prisma.vehicleDocument.deleteMany({});
     await prisma.licenseReminderLog.deleteMany({});
+    await prisma.expense.deleteMany({});
+    await prisma.fuelLog.deleteMany({});
+    await prisma.maintenanceLog.deleteMany({});
     await prisma.trip.deleteMany({});
     await prisma.driver.deleteMany({});
     await prisma.vehicle.deleteMany({});
@@ -90,10 +93,10 @@ describe('TransitOps Extensions Integration Tests', () => {
   });
 
   // --- Feature 1: Charts & Visual Analytics ---
-  describe('GET /api/analytics/*', () => {
-    test('GET /api/analytics/fleet-utilization-trend', async () => {
+  describe('GET /api/v1/analytics/*', () => {
+    test('GET /api/v1/analytics/fleet-utilization-trend', async () => {
       const res = await request(app)
-        .get('/api/analytics/fleet-utilization-trend?days=7')
+        .get('/api/v1/analytics/fleet-utilization-trend?days=7')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -103,9 +106,9 @@ describe('TransitOps Extensions Integration Tests', () => {
       expect(res.body[0]).toHaveProperty('utilization');
     });
 
-    test('GET /api/analytics/cost-trend', async () => {
+    test('GET /api/v1/analytics/cost-trend', async () => {
       const res = await request(app)
-        .get('/api/analytics/cost-trend?months=3')
+        .get('/api/v1/analytics/cost-trend?months=3')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -118,9 +121,9 @@ describe('TransitOps Extensions Integration Tests', () => {
       expect(res.body[0]).toHaveProperty('total');
     });
 
-    test('GET /api/analytics/fuel-efficiency-trend', async () => {
+    test('GET /api/v1/analytics/fuel-efficiency-trend', async () => {
       const res = await request(app)
-        .get(`/api/analytics/fuel-efficiency-trend?months=3&vehicleId=${vehicle.vehicle_id}`)
+        .get(`/api/v1/analytics/fuel-efficiency-trend?months=3&vehicleId=${vehicle.vehicle_id}`)
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -131,9 +134,9 @@ describe('TransitOps Extensions Integration Tests', () => {
       expect(res.body[0]).toHaveProperty('efficiency');
     });
 
-    test('GET /api/analytics/trip-volume', async () => {
+    test('GET /api/v1/analytics/trip-volume', async () => {
       const res = await request(app)
-        .get('/api/analytics/trip-volume?days=5')
+        .get('/api/v1/analytics/trip-volume?days=5')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -149,10 +152,10 @@ describe('TransitOps Extensions Integration Tests', () => {
   });
 
   // --- Feature 2: PDF Export ---
-  describe('GET /api/reports/export/pdf', () => {
+  describe('GET /api/v1/reports/export/pdf', () => {
     test('Downloads formatted tabular PDF report', async () => {
       const res = await request(app)
-        .get('/api/reports/export/pdf?type=vehicles')
+        .get('/api/v1/reports/export/pdf?type=vehicles')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -162,10 +165,10 @@ describe('TransitOps Extensions Integration Tests', () => {
   });
 
   // --- Feature 3: Expiry Email Alerts & Job ---
-  describe('GET & POST /api/notifications/*', () => {
-    test('GET /api/notifications/expiring-licenses', async () => {
+  describe('GET & POST /api/v1/notifications/*', () => {
+    test('GET /api/v1/notifications/expiring-licenses', async () => {
       const res = await request(app)
-        .get('/api/notifications/expiring-licenses?days=30')
+        .get('/api/v1/notifications/expiring-licenses?days=30')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -173,9 +176,9 @@ describe('TransitOps Extensions Integration Tests', () => {
       expect(res.body.some(d => d.driver_id === driver.driver_id)).toBe(true);
     });
 
-    test('POST /api/notifications/expiring-licenses/check runs cron alerts manually', async () => {
+    test('POST /api/v1/notifications/expiring-licenses/check runs cron alerts manually', async () => {
       const res = await request(app)
-        .post('/api/notifications/expiring-licenses/check')
+        .post('/api/v1/notifications/expiring-licenses/check')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -192,7 +195,7 @@ describe('TransitOps Extensions Integration Tests', () => {
   });
 
   // --- Feature 4: Vehicle Document Management ---
-  describe('POST, GET, DELETE /api/vehicles/:id/documents', () => {
+  describe('POST, GET, DELETE /api/v1/vehicles/:id/documents', () => {
     let dummyFilePath;
 
     beforeAll(() => {
@@ -208,7 +211,7 @@ describe('TransitOps Extensions Integration Tests', () => {
 
     test('Uploads vehicle document', async () => {
       const res = await request(app)
-        .post(`/api/vehicles/${vehicle.vehicle_id}/documents`)
+        .post(`/api/v1/vehicles/${vehicle.vehicle_id}/documents`)
         .set('Authorization', `Bearer ${token}`)
         .field('doc_type', 'INSURANCE')
         .field('issue_date', '2026-01-01')
@@ -223,7 +226,7 @@ describe('TransitOps Extensions Integration Tests', () => {
 
     test('Lists documents for vehicle', async () => {
       const res = await request(app)
-        .get(`/api/vehicles/${vehicle.vehicle_id}/documents`)
+        .get(`/api/v1/vehicles/${vehicle.vehicle_id}/documents`)
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -234,7 +237,7 @@ describe('TransitOps Extensions Integration Tests', () => {
 
     test('Downloads document file', async () => {
       const res = await request(app)
-        .get(`/api/vehicle-documents/${testDoc.document_id}/download`)
+        .get(`/api/v1/vehicle-documents/${testDoc.document_id}/download`)
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -243,7 +246,7 @@ describe('TransitOps Extensions Integration Tests', () => {
 
     test('Lists expiring documents', async () => {
       const res = await request(app)
-        .get('/api/vehicle-documents/expiring?days=365')
+        .get('/api/v1/vehicle-documents/expiring?days=365')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -253,7 +256,7 @@ describe('TransitOps Extensions Integration Tests', () => {
 
     test('Deletes vehicle document', async () => {
       const res = await request(app)
-        .delete(`/api/vehicle-documents/${testDoc.document_id}`)
+        .delete(`/api/v1/vehicle-documents/${testDoc.document_id}`)
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);

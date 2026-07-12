@@ -41,10 +41,10 @@ app.use('/api/v1/trips', tripsRoutes);
 app.use('/api/v1/maintenance', maintenanceRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/reports', reportsRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/reports/export/pdf', reportsPdfRoutes);
-app.use('/api/notifications', notificationsRoutes);
-app.use('/api', vehicleDocumentsRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/reports/export/pdf', reportsPdfRoutes);
+app.use('/api/v1/notifications', notificationsRoutes);
+app.use('/api/v1', vehicleDocumentsRoutes);
 
 // Mounting fuel and expenses router directly to api/v1 because it serves /fuel-logs and /expenses
 app.use('/api/v1', fuelExpensesRoutes);

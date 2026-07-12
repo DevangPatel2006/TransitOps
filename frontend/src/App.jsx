@@ -12,17 +12,7 @@ import FuelExpensePage from './pages/FuelExpensePage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
 
-/** Placeholder stub for pages not yet built */
-function PlaceholderPage({ title }) {
-  return (
-    <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 10rem)' }}>
-      <div className="text-center space-y-2">
-        <h1 className="text-xl font-semibold text-content-primary">{title}</h1>
-        <p className="text-sm text-content-muted">This page is coming soon.</p>
-      </div>
-    </div>
-  );
-}
+
 
 function App() {
   return (
