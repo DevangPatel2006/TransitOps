@@ -1,0 +1,198 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum RoleName {
+  FLEET_MANAGER
+  DRIVER_OPS
+  SAFETY_OFFICER
+  FINANCIAL_ANALYST
+
+  @@map("role_name")
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  ON_TRIP
+  IN_SHOP
+  RETIRED
+
+  @@map("vehicle_status")
+}
+
+enum VehicleType {
+  TRUCK
+  VAN
+  BIKE
+  TRAILER
+
+  @@map("vehicle_type")
+}
+
+enum DriverStatus {
+  AVAILABLE
+  ON_TRIP
+  OFF_DUTY
+  SUSPENDED
+
+  @@map("driver_status")
+}
+
+enum TripStatus {
+  DRAFT
+  DISPATCHED
+  COMPLETED
+  CANCELLED
+
+  @@map("trip_status")
+}
+
+enum MaintenanceStatus {
+  OPEN
+  CLOSED
+
+  @@map("maintenance_status")
+}
+
+enum ExpenseType {
+  TOLL
+  FINE
+  PARKING
+  OTHER
+
+  @@map("expense_type")
+}
+
+model Role {
+  role_id Int      @id @default(autoincrement())
+  name    RoleName @unique
+  users   User[]
+
+  @@map("roles")
+}
+
+model User {
+  user_id       Int      @id @default(autoincrement())
+  full_name     String   @db.VarChar(120)
+  email         String   @unique @db.VarChar(160)
+  password_hash String
+  role_id       Int
+  role          Role     @relation(fields: [role_id], references: [role_id], onDelete: Restrict)
+  created_at    DateTime @default(now()) @db.Timestamptz
+  trips         Trip[]
+
+  @@index([email], name: "idx_users_email")
+  @@map("users")
+}
+
+model Vehicle {
+  vehicle_id        Int              @id @default(autoincrement())
+  registration_no   String           @unique @db.VarChar(30)
+  name_model        String           @db.VarChar(100)
+  type              VehicleType
+  max_load_capacity Decimal          @db.Decimal(10, 2)
+  odometer          Decimal          @default(0) @db.Decimal(10, 2)
+  acquisition_cost  Decimal          @db.Decimal(12, 2)
+  region            String?          @db.VarChar(60)
+  status            VehicleStatus    @default(AVAILABLE)
+  created_at        DateTime         @default(now()) @db.Timestamptz
+  trips             Trip[]
+  maintenance_logs  MaintenanceLog[]
+  fuel_logs         FuelLog[]
+  expenses          Expense[]
+
+  @@index([status], name: "idx_vehicles_status")
+  @@index([type, region], name: "idx_vehicles_type_region")
+  @@map("vehicles")
+}
+
+model Driver {
+  driver_id        Int          @id @default(autoincrement())
+  full_name        String       @db.VarChar(120)
+  license_number   String       @unique @db.VarChar(40)
+  license_category String       @db.VarChar(20)
+  license_expiry   DateTime     @db.Date
+  contact_number   String       @db.VarChar(20)
+  safety_score     Decimal      @default(100) @db.Decimal(4, 1)
+  status           DriverStatus @default(AVAILABLE)
+  created_at       DateTime     @default(now()) @db.Timestamptz
+  trips            Trip[]
+
+  @@index([status], name: "idx_drivers_status")
+  @@index([license_expiry], name: "idx_drivers_license_expiry")
+  @@map("drivers")
+}
+
+model Trip {
+  trip_id          Int        @id @default(autoincrement())
+  source           String     @db.VarChar(120)
+  destination      String     @db.VarChar(120)
+  vehicle_id       Int
+  vehicle          Vehicle    @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: Restrict)
+  driver_id        Int
+  driver           Driver     @relation(fields: [driver_id], references: [driver_id], onDelete: Restrict)
+  cargo_weight     Decimal    @db.Decimal(10, 2)
+  planned_distance Decimal    @db.Decimal(10, 2)
+  actual_distance  Decimal?   @db.Decimal(10, 2)
+  fuel_consumed    Decimal?   @db.Decimal(10, 2)
+  revenue          Decimal?   @default(0) @db.Decimal(12, 2)
+  status           TripStatus @default(DRAFT)
+  created_by       Int
+  creator          User       @relation(fields: [created_by], references: [user_id], onDelete: Restrict)
+  dispatched_at    DateTime?  @db.Timestamptz
+  completed_at     DateTime?  @db.Timestamptz
+  created_at       DateTime   @default(now()) @db.Timestamptz
+  fuel_logs        FuelLog[]
+
+  @@index([status], name: "idx_trips_status")
+  @@index([vehicle_id], name: "idx_trips_vehicle")
+  @@index([driver_id], name: "idx_trips_driver")
+  @@map("trips")
+}
+
+model MaintenanceLog {
+  maintenance_id Int               @id @default(autoincrement())
+  vehicle_id     Int
+  vehicle        Vehicle           @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: Restrict)
+  description    String            @db.VarChar(200)
+  cost           Decimal           @default(0) @db.Decimal(12, 2)
+  status         MaintenanceStatus @default(OPEN)
+  opened_at      DateTime          @default(now()) @db.Timestamptz
+  closed_at      DateTime?         @db.Timestamptz
+
+  @@index([vehicle_id], name: "idx_maintenance_vehicle")
+  @@index([status], name: "idx_maintenance_status")
+  @@map("maintenance_logs")
+}
+
+model FuelLog {
+  fuel_log_id Int      @id @default(autoincrement())
+  vehicle_id  Int
+  vehicle     Vehicle  @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: Restrict)
+  trip_id     Int?
+  trip        Trip?    @relation(fields: [trip_id], references: [trip_id], onDelete: SetNull)
+  liters      Decimal  @db.Decimal(10, 2)
+  cost        Decimal  @db.Decimal(12, 2)
+  log_date    DateTime @default(now()) @db.Date
+
+  @@index([vehicle_id], name: "idx_fuel_vehicle")
+  @@map("fuel_logs")
+}
+
+model Expense {
+  expense_id   Int         @id @default(autoincrement())
+  vehicle_id   Int
+  vehicle      Vehicle     @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: Restrict)
+  type         ExpenseType
+  amount       Decimal     @db.Decimal(12, 2)
+  expense_date DateTime    @default(now()) @db.Date
+  notes        String?     @db.VarChar(200)
+
+  @@index([vehicle_id], name: "idx_expenses_vehicle")
+  @@map("expenses")
+}
