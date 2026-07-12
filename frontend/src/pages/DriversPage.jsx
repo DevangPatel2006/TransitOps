@@ -14,6 +14,7 @@ export default function DriversPage() {
 
   // Role Gate check for Safety Officer
   const isSafetyOfficer = user?.role?.name === 'SAFETY_OFFICER';
+  const isManagerOrSafety = user?.role?.name === 'FLEET_MANAGER' || user?.role?.name === 'SAFETY_OFFICER';
 
   // Filters & State
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -36,7 +37,6 @@ export default function DriversPage() {
   const [loadingExpiring, setLoadingExpiring] = useState(false);
 
   const fetchExpiringLicenses = useCallback(async () => {
-    const isManagerOrSafety = user?.role?.name === 'FLEET_MANAGER' || user?.role?.name === 'SAFETY_OFFICER';
     if (!isManagerOrSafety) return;
     setLoadingExpiring(true);
     try {
@@ -47,7 +47,7 @@ export default function DriversPage() {
     } finally {
       setLoadingExpiring(false);
     }
-  }, [expiryDays, user]);
+  }, [expiryDays, isManagerOrSafety]);
 
   useEffect(() => {
     fetchExpiringLicenses();
