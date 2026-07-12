@@ -13,13 +13,13 @@ export default function FleetPage() {
   const { user } = useAuth();
 
   const isFleetManager = user?.role?.name === 'FLEET_MANAGER';
-  
+
   // Filters & State
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
-  
+
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -151,8 +151,8 @@ export default function FleetPage() {
       setVehicles(res.data || []);
     } catch (err) {
       toast.error(
-        err.response?.data?.error || 
-        err.response?.data?.message || 
+        err.response?.data?.error ||
+        err.response?.data?.message ||
         'Failed to load fleet data'
       );
     } finally {
@@ -187,8 +187,8 @@ export default function FleetPage() {
       fetchFleet();
     } catch (err) {
       toast.error(
-        err.response?.data?.error || 
-        err.response?.data?.message || 
+        err.response?.data?.error ||
+        err.response?.data?.message ||
         'Failed to retire vehicle.'
       );
     }
@@ -262,33 +262,33 @@ export default function FleetPage() {
 
   const columns = isFleetManager
     ? [
-        ...baseColumns,
-        {
-          key: 'actions',
-          label: 'Actions',
-          sortable: false,
-          render: (row) => (
-            <div className="flex items-center gap-2">
+      ...baseColumns,
+      {
+        key: 'actions',
+        label: 'Actions',
+        sortable: false,
+        render: (row) => (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleEditClick(row)}
+              className="p-1.5 rounded-[10px] text-content-muted hover:text-accent hover:bg-accent-muted border border-transparent hover:border-accent/20 transition-all"
+              title="Edit Vehicle"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+            {row.status !== 'RETIRED' && (
               <button
-                onClick={() => handleEditClick(row)}
-                className="p-1.5 rounded-[10px] text-content-muted hover:text-accent hover:bg-accent-muted border border-transparent hover:border-accent/20 transition-all"
-                title="Edit Vehicle"
+                onClick={() => handleRetireClick(row)}
+                className="p-1.5 rounded-[10px] text-content-muted hover:text-status-retired hover:bg-status-retired-bg border border-transparent hover:border-status-retired/20 transition-all"
+                title="Retire Vehicle"
               >
-                <Edit2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" />
               </button>
-              {row.status !== 'RETIRED' && (
-                <button
-                  onClick={() => handleRetireClick(row)}
-                  className="p-1.5 rounded-[10px] text-content-muted hover:text-status-retired hover:bg-status-retired-bg border border-transparent hover:border-status-retired/20 transition-all"
-                  title="Retire Vehicle"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          ),
-        },
-      ]
+            )}
+          </div>
+        ),
+      },
+    ]
     : baseColumns;
 
   return (
@@ -528,3 +528,4 @@ export default function FleetPage() {
     </div>
   );
 }
+//check
