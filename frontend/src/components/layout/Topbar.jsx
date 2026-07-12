@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Bell } from 'lucide-react';
+import { Search, Bell, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getRoleLabel } from '../../config/roles';
 import { getExpiringLicenses } from '../../api/notifications.api';
@@ -7,6 +7,19 @@ import { getExpiringLicenses } from '../../api/notifications.api';
 export default function Topbar() {
   const { user } = useAuth();
   const [expiringCount, setExpiringCount] = useState(0);
+
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('transitops_theme') || 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('transitops_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   const roleName = user?.role?.name ?? '';
   const roleLabel = getRoleLabel(roleName);
@@ -58,6 +71,16 @@ export default function Topbar() {
 
       {/* Right side actions */}
       <div className="flex items-center gap-5">
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          type="button"
+          className="p-1.5 rounded-[10px] bg-surface-elevated hover:bg-surface-base border border-border-hairline text-content-muted hover:text-content-primary cursor-pointer transition-colors"
+          title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+        >
+          {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+        </button>
+
         {/* Notification indicator */}
         {isManagerOrSafety && (
           <div className="relative p-1.5 rounded-[10px] bg-surface-elevated hover:bg-surface-base border border-border-hairline text-content-muted hover:text-content-primary cursor-pointer transition-colors" title="Safety Alerts: Licenses Expiring in 30 Days">

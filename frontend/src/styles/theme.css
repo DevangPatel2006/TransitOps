@@ -27,6 +27,10 @@
   --color-status-on-trip: #2563EB;
   --color-status-in-shop: #D97706;
   --color-status-retired: #DC2626;
+  --color-status-available-bg: rgba(22, 163, 74, 0.15);
+  --color-status-on-trip-bg: rgba(37, 99, 235, 0.15);
+  --color-status-in-shop-bg: rgba(217, 119, 6, 0.15);
+  --color-status-retired-bg: rgba(220, 38, 38, 0.15);
 
   /* ---- Radius ---- */
   --radius: 10px;
@@ -37,6 +41,37 @@
 
   /* ---- Typography ---- */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+:root[data-theme="light"] {
+  /* ---- Surface ---- */
+  --color-surface-base: #F8FAFC;
+  --color-surface-card: #FFFFFF;
+  --color-surface-elevated: #F1F5F9;
+
+  /* ---- Borders ---- */
+  --color-border-hairline: rgba(15, 23, 42, 0.08);
+  --color-border-subtle: rgba(15, 23, 42, 0.14);
+
+  /* ---- Content / Text ---- */
+  --color-content-primary: #0F172A;
+  --color-content-muted: #64748B;
+  --color-content-inverse: #FFFFFF;
+
+  /* ---- Accent / Primary ---- */
+  --color-accent: #D97706;
+  --color-accent-hover: #F59E0B;
+  --color-accent-muted: rgba(217, 119, 6, 0.12);
+
+  /* ---- Status Background overrides ---- */
+  --color-status-available-bg: rgba(22, 163, 74, 0.10);
+  --color-status-on-trip-bg: rgba(37, 99, 235, 0.10);
+  --color-status-in-shop-bg: rgba(217, 119, 6, 0.10);
+  --color-status-retired-bg: rgba(220, 38, 38, 0.10);
+
+  /* ---- Shadows ---- */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 *,
@@ -58,6 +93,7 @@ body {
   color: var(--color-content-primary);
   min-height: 100vh;
   line-height: 1.5;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 #root {
@@ -72,7 +108,7 @@ body {
   background: var(--color-surface-base);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--color-border-subtle);
   border-radius: 3px;
 }
 

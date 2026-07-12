@@ -7,3 +7,4 @@ import axiosClient from './axiosClient';
 export function registerUser(data) {
   return axiosClient.post('/auth/register', data);
 }
+//check
