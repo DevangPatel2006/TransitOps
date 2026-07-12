@@ -11,7 +11,7 @@ const authenticate = require('../../middleware/authenticate');
 const requireRole = require('../../middleware/requireRole');
 
 const router = express.Router();
-
+//auth
 router.use(authenticate);
 
 router.get('/', validate(queryVehicleSchema), vehiclesController.getVehicles);
@@ -23,3 +23,4 @@ router.delete('/:id', requireRole('FLEET_MANAGER'), validate(idParamSchema), veh
 router.get('/:id/costs', validate(idParamSchema), vehiclesController.getVehicleCosts);
 
 module.exports = router;
+// checked
