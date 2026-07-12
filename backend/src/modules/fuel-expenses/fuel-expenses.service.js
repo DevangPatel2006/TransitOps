@@ -26,7 +26,7 @@ const createFuelLog = async (data) => {
     },
   });
 };
-
+//get fuel 
 const getFuelLogs = async (filters = {}) => {
   const { vehicleId } = filters;
   const where = {};

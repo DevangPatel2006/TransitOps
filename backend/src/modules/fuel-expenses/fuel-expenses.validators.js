@@ -13,7 +13,7 @@ const createFuelLogSchema = z.object({
     log_date: dateCoercion.optional(),
   }),
 });
-
+//comnst 
 const queryFuelLogSchema = z.object({
   query: z.object({
     vehicleId: z.string().regex(/^\d+$/, 'Vehicle ID must be an integer').transform(Number).optional(),
