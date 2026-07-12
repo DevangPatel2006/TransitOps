@@ -8,7 +8,7 @@ const authenticate = async (req, res, next) => {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new ApiError(401, 'Please authenticate');
     }
-
+//auth
     const token = authHeader.split(' ')[1];
     let payload;
     try {

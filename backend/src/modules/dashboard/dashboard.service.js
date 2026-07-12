@@ -2,7 +2,7 @@ const prisma = require('../../config/db');
 
 const getKPIs = async (filters = {}) => {
   const { type, region } = filters;
-
+//db
   const vehicleWhere = {};
   if (type) vehicleWhere.type = type;
   if (region) {

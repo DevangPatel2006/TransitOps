@@ -19,3 +19,4 @@ const kpiQuerySchema = z.object({
 router.get('/kpis', validate(kpiQuerySchema), dashboardController.getKPIs);
 
 module.exports = router;
+//export
