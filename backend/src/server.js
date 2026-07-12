@@ -2,8 +2,10 @@ require('dotenv').config();
 const app = require('./app');
 const prisma = require('./config/db');
 
-const PORT = process.env.PORT || 3000;
+require('./utils/monkeyPatch'); require('./jobs/licenseExpiryJob').start();
 
+const PORT = process.env.PORT || 3000;
+//port
 const startServer = async () => {
   try {
     // Test DB connection
@@ -20,3 +22,5 @@ const startServer = async () => {
 };
 
 startServer();
+
+//connection is proper
