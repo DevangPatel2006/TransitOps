@@ -141,7 +141,7 @@ const getExportData = async (type) => {
     const headers = ['driver_id', 'full_name', 'license_number', 'license_category', 'license_expiry', 'contact_number', 'safety_score', 'status'];
     return exportToCsv(formatted, headers);
   }
-
+//checck
   if (type === 'trips') {
     const list = await prisma.trip.findMany();
     const formatted = list.map((t) => ({

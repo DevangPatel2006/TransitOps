@@ -5,7 +5,7 @@ const reportsPdfController = require('./reports.pdf.controller');
 const authenticate = require('../../middleware/authenticate');
 
 const router = express.Router();
-
+//auth
 router.use(authenticate);
 
 const pdfExportQuerySchema = z.object({
