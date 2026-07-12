@@ -5,7 +5,7 @@ const prisma = require('./config/db');
 require('./utils/monkeyPatch'); require('./jobs/licenseExpiryJob').start();
 
 const PORT = process.env.PORT || 3000;
-
+//port
 const startServer = async () => {
   try {
     // Test DB connection
