@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('Clearing database...');
-  // Delete in reverse order of foreign key dependencies
+  // Delete in reverse order of foreign key dependencies checked
   await prisma.expense.deleteMany({});
   await prisma.fuelLog.deleteMany({});
   await prisma.maintenanceLog.deleteMany({});
@@ -101,7 +101,7 @@ async function main() {
       odometer: 45000,
       acquisition_cost: 95000,
       region: 'West',
-      status: 'IN_SHOP', // For maintenance log open
+      status: 'IN_SHOP', // For maintenance log open /
     },
   });
 

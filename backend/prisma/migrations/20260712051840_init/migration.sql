@@ -39,7 +39,7 @@ CREATE TABLE "users" (
     CONSTRAINT "users_pkey" PRIMARY KEY ("user_id")
 );
 
--- CreateTable
+-- CreateTable  done
 CREATE TABLE "vehicles" (
     "vehicle_id" SERIAL NOT NULL,
     "registration_no" VARCHAR(30) NOT NULL,
