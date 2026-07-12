@@ -154,10 +154,10 @@ export default function MaintenancePage() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      
+
       {/* ─── LEFT COLUMN: Log Service Record Form ─── */}
       <div className="space-y-6">
-        
+
         <div className="bg-surface-card p-5 rounded-[10px] border border-border-hairline">
           <div className="mb-4">
             <h2 className="text-sm font-semibold text-content-primary">Log Service Record</h2>
@@ -172,7 +172,7 @@ export default function MaintenancePage() {
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            
+
             {/* Vehicle Selection */}
             <div>
               <label htmlFor="vehicle_id" className="block text-[10px] font-bold text-content-muted uppercase tracking-wider mb-1.5">
@@ -350,8 +350,8 @@ export default function MaintenancePage() {
                     <td className="px-5 py-3">
                       {/* Open/Closed status display using badges */}
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold
-                        ${log.status === 'OPEN' 
-                          ? 'bg-status-in-shop-bg text-status-in-shop border border-status-in-shop/20' 
+                        ${log.status === 'OPEN'
+                          ? 'bg-status-in-shop-bg text-status-in-shop border border-status-in-shop/20'
                           : 'bg-status-available-bg text-status-available border border-status-available/20'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${log.status === 'OPEN' ? 'bg-status-in-shop' : 'bg-status-available'}`} />
                         {log.status === 'OPEN' ? 'Open' : 'Closed'}
@@ -386,3 +386,4 @@ export default function MaintenancePage() {
     </div>
   );
 }
+//check
