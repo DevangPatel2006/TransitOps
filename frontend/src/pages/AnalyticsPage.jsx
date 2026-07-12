@@ -127,7 +127,7 @@ export default function AnalyticsPage() {
     setExporting(true);
     try {
       const response = await exportReportCsv(exportType);
-      
+
       // Handle file download from blob response
       const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
@@ -152,7 +152,7 @@ export default function AnalyticsPage() {
     setExportingPdf(true);
     try {
       const response = await exportReportPdf(exportType);
-      
+
       // Handle file download from blob response
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
@@ -176,14 +176,14 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Header and Export Row */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-content-primary">Reports &amp; Analytics</h1>
           <p className="text-sm text-content-muted">Financial ROI metrics, fleet usage patterns, and data exports</p>
         </div>
-        
+
         {/* CSV & PDF Export tool */}
         {canExportCsv ? (
           <div className="flex items-center gap-2 bg-surface-card p-2 rounded-[10px] border border-border-hairline">
@@ -258,7 +258,7 @@ export default function AnalyticsPage() {
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* Monthly Operational Costs chart */}
         <div className="bg-surface-card p-5 rounded-[10px] border border-border-hairline">
           <h3 className="text-sm font-semibold text-content-primary mb-6">Monthly Operational Costs</h3>
@@ -356,3 +356,6 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+
+//check
