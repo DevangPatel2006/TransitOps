@@ -1,0 +1,82 @@
+/* ============================================================
+   TransitOps — Theme & Design Tokens (CSS Custom Properties)
+   ============================================================ */
+
+:root {
+  /* ---- Surface ---- */
+  --color-surface-base: #0B0B0F;
+  --color-surface-card: #15151B;
+  --color-surface-elevated: #1C1C24;
+
+  /* ---- Borders ---- */
+  --color-border-hairline: rgba(255, 255, 255, 0.08);
+  --color-border-subtle: rgba(255, 255, 255, 0.12);
+
+  /* ---- Content / Text ---- */
+  --color-content-primary: #F1F5F9;
+  --color-content-muted: #94A3B8;
+  --color-content-inverse: #0B0B0F;
+
+  /* ---- Accent / Primary ---- */
+  --color-accent: #D97706;
+  --color-accent-hover: #F59E0B;
+  --color-accent-muted: rgba(217, 119, 6, 0.15);
+
+  /* ---- Status ---- */
+  --color-status-available: #16A34A;
+  --color-status-on-trip: #2563EB;
+  --color-status-in-shop: #D97706;
+  --color-status-retired: #DC2626;
+
+  /* ---- Radius ---- */
+  --radius: 10px;
+
+  /* ---- Shadows ---- */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  /* ---- Typography ---- */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--color-surface-base);
+  color: var(--color-content-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface-base);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+::selection {
+  background-color: var(--color-accent-muted);
+  color: var(--color-content-primary);
+}
