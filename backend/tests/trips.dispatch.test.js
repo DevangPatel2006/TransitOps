@@ -483,5 +483,78 @@ describe('TransitOps Trip Dispatch Integration Tests', () => {
     const statuses = [res1.status, res2.status];
     expect(statuses).toContain(200);
     expect(statuses).toContain(409);
+
+    const finalVehicle = await prisma.vehicle.findUnique({ where: { vehicle_id: vehicle.vehicle_id } });
+    expect(finalVehicle.status).toBe('ON_TRIP');
+
+    const dispatchedTrips = await prisma.trip.findMany({
+      where: { vehicle_id: vehicle.vehicle_id, status: 'DISPATCHED' },
+    });
+    expect(dispatchedTrips.length).toBe(1);
+  });
+
+  test('5 concurrent dispatch attempts on the same DRAFT trip: exactly one succeeds', async () => {
+    const vehicle = await prisma.vehicle.create({
+      data: {
+        registration_no: 'VAN-CONC-5',
+        name_model: 'Ford Van',
+        type: 'VAN',
+        max_load_capacity: 1000,
+        odometer: 10000,
+        acquisition_cost: 20000,
+        status: 'AVAILABLE',
+      },
+    });
+
+    const expiryDate = new Date();
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+    const driver = await prisma.driver.create({
+      data: {
+        full_name: 'Driver 5Way',
+        license_number: 'LIC-C5',
+        license_category: 'Class A',
+        license_expiry: expiryDate,
+        contact_number: '1234567890',
+        safety_score: 95,
+        status: 'AVAILABLE',
+      },
+    });
+
+    const trip = await prisma.trip.create({
+      data: {
+        source: 'Warehouse A',
+        destination: 'Warehouse B',
+        vehicle_id: vehicle.vehicle_id,
+        driver_id: driver.driver_id,
+        cargo_weight: 800,
+        planned_distance: 150,
+        status: 'DRAFT',
+        created_by: managerUser.user_id,
+      },
+    });
+
+    const responses = await Promise.all([
+      request(app).post(`/api/v1/trips/${trip.trip_id}/dispatch`).set('Authorization', `Bearer ${driverOpsToken}`),
+      request(app).post(`/api/v1/trips/${trip.trip_id}/dispatch`).set('Authorization', `Bearer ${driverOpsToken}`),
+      request(app).post(`/api/v1/trips/${trip.trip_id}/dispatch`).set('Authorization', `Bearer ${driverOpsToken}`),
+      request(app).post(`/api/v1/trips/${trip.trip_id}/dispatch`).set('Authorization', `Bearer ${driverOpsToken}`),
+      request(app).post(`/api/v1/trips/${trip.trip_id}/dispatch`).set('Authorization', `Bearer ${driverOpsToken}`),
+    ]);
+
+    const statusCodes = responses.map((res) => res.status);
+    const successCount = statusCodes.filter((s) => s === 200).length;
+    const failureCount = statusCodes.filter((s) => s === 400 || s === 409).length;
+
+    expect(successCount).toBe(1);
+    expect(failureCount).toBe(4);
+
+    const finalTrip = await prisma.trip.findUnique({ where: { trip_id: trip.trip_id } });
+    const finalVehicle = await prisma.vehicle.findUnique({ where: { vehicle_id: vehicle.vehicle_id } });
+    const finalDriver = await prisma.driver.findUnique({ where: { driver_id: driver.driver_id } });
+
+    expect(finalTrip.status).toBe('DISPATCHED');
+    expect(finalVehicle.status).toBe('ON_TRIP');
+    expect(finalDriver.status).toBe('ON_TRIP');
   });
 });

@@ -103,8 +103,6 @@ const getTripById = async (id) => {
 
 const dispatchTrip = async (id) => {
   return await prisma.$transaction(async (tx) => {
-    // 1. Fetch trip and lock (Prisma doesn't have direct SELECT FOR UPDATE in clean DSL,
-    // but running queries inside transaction provides read consistency, and we can check status)
     const trip = await tx.trip.findUnique({
       where: { trip_id: id },
     });
@@ -117,48 +115,38 @@ const dispatchTrip = async (id) => {
       throw new ApiError(400, `Cannot dispatch a trip in ${trip.status} status`);
     }
 
-    // 2. Fetch and re-validate vehicle availability inside the transaction
-    const vehicle = await tx.vehicle.findUnique({
-      where: { vehicle_id: trip.vehicle_id },
+    // Conditional update: only succeeds if vehicle is still AVAILABLE at the moment of write.
+    const vehicleUpdate = await tx.vehicle.updateMany({
+      where: { vehicle_id: trip.vehicle_id, status: 'AVAILABLE' },
+      data: { status: 'ON_TRIP' },
     });
-
-    if (vehicle.status !== 'AVAILABLE') {
-      throw new ApiError(409, `Vehicle is not available for dispatch (status: ${vehicle.status})`);
+    if (vehicleUpdate.count === 0) {
+      throw new ApiError(409, 'Vehicle is no longer available for dispatch');
     }
 
-    // 3. Fetch and re-validate driver availability inside the transaction
+    // Also re-verify license expiry at write-time, not just read-time.
     const driver = await tx.driver.findUnique({
       where: { driver_id: trip.driver_id },
     });
-
-    if (driver.status !== 'AVAILABLE') {
-      throw new ApiError(409, `Driver is not available for dispatch (status: ${driver.status})`);
-    }
-
-    if (new Date(driver.license_expiry) < new Date()) {
+    if (!driver || new Date(driver.license_expiry) < new Date()) {
       throw new ApiError(409, 'Driver license is expired');
     }
 
-    // 4. Atomically update statuses
-    const updatedTrip = await tx.trip.update({
+    const driverUpdate = await tx.driver.updateMany({
+      where: { driver_id: trip.driver_id, status: 'AVAILABLE' },
+      data: { status: 'ON_TRIP' },
+    });
+    if (driverUpdate.count === 0) {
+      throw new ApiError(409, 'Driver is no longer available for dispatch');
+    }
+
+    return await tx.trip.update({
       where: { trip_id: id },
       data: {
         status: 'DISPATCHED',
         dispatched_at: new Date(),
       },
     });
-
-    await tx.vehicle.update({
-      where: { vehicle_id: trip.vehicle_id },
-      data: { status: 'ON_TRIP' },
-    });
-
-    await tx.driver.update({
-      where: { driver_id: trip.driver_id },
-      data: { status: 'ON_TRIP' },
-    });
-
-    return updatedTrip;
   });
 };
 
@@ -189,9 +177,9 @@ const completeTrip = async (id, completionData) => {
 
     const actual_distance = final_odometer - currentOdo;
 
-    // Update trip details
-    const updatedTrip = await tx.trip.update({
-      where: { trip_id: id },
+    // Conditional update on the trip
+    const tripUpdate = await tx.trip.updateMany({
+      where: { trip_id: id, status: 'DISPATCHED' },
       data: {
         status: 'COMPLETED',
         actual_distance,
@@ -200,6 +188,9 @@ const completeTrip = async (id, completionData) => {
         completed_at: new Date(),
       },
     });
+    if (tripUpdate.count === 0) {
+      throw new ApiError(409, 'Trip is no longer in a completable state');
+    }
 
     // Restore vehicle and driver availability
     await tx.vehicle.update({
@@ -217,7 +208,10 @@ const completeTrip = async (id, completionData) => {
       },
     });
 
-    return updatedTrip;
+    return await tx.trip.findUnique({
+      where: { trip_id: id },
+      include: { vehicle: true, driver: true },
+    });
   });
 };
 
@@ -235,10 +229,14 @@ const cancelTrip = async (id) => {
       throw new ApiError(400, `Cannot cancel a trip in ${trip.status} status`);
     }
 
-    const updatedTrip = await tx.trip.update({
-      where: { trip_id: id },
+    // Conditional update on the trip
+    const tripUpdate = await tx.trip.updateMany({
+      where: { trip_id: id, status: { in: ['DRAFT', 'DISPATCHED'] } },
       data: { status: 'CANCELLED' },
     });
+    if (tripUpdate.count === 0) {
+      throw new ApiError(409, 'Trip is no longer in a cancellable state');
+    }
 
     // If it was already dispatched, restore vehicle and driver availability
     if (trip.status === 'DISPATCHED') {
@@ -253,7 +251,10 @@ const cancelTrip = async (id) => {
       });
     }
 
-    return updatedTrip;
+    return await tx.trip.findUnique({
+      where: { trip_id: id },
+      include: { vehicle: true, driver: true },
+    });
   });
 };
 
