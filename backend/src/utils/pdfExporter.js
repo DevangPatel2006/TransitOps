@@ -19,8 +19,8 @@ const generateTablePDF = (title, headers, data, res) => {
 
   // Header row background
   doc.fillColor('#eaeaea')
-     .rect(startX, currentY - 5, tableWidth, 20)
-     .fill();
+    .rect(startX, currentY - 5, tableWidth, 20)
+    .fill();
 
   // Header texts
   doc.fillColor('#000000').font('Helvetica-Bold').fontSize(9);
@@ -41,8 +41,8 @@ const generateTablePDF = (title, headers, data, res) => {
 
       // Header row background on new page
       doc.fillColor('#eaeaea')
-         .rect(startX, currentY - 5, tableWidth, 20)
-         .fill();
+        .rect(startX, currentY - 5, tableWidth, 20)
+        .fill();
 
       // Header texts
       doc.fillColor('#000000').font('Helvetica-Bold').fontSize(9);
@@ -58,8 +58,8 @@ const generateTablePDF = (title, headers, data, res) => {
     // Zebra striping
     if (rowIndex % 2 === 1) {
       doc.fillColor('#f9f9f9')
-         .rect(startX, currentY - 3, tableWidth, 14)
-         .fill();
+        .rect(startX, currentY - 3, tableWidth, 14)
+        .fill();
     }
 
     doc.fillColor('#333333');
@@ -78,3 +78,5 @@ const generateTablePDF = (title, headers, data, res) => {
 module.exports = {
   generateTablePDF,
 };
+
+//checked pdfExporter
