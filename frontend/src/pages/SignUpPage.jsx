@@ -3,21 +3,37 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Bus, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Bus, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { registerUser } from '../api/auth.api';
 import ROLE_LABELS from '../config/roles';
 
-const loginSchema = z.object({
-  email: z.string().email('Enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
+// SignUp Form Validation Schema
+const signUpSchema = z.object({
+  full_name: z
+    .string()
+    .min(1, 'Full name is required')
+    .max(120, 'Full name must be 120 characters or less'),
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Enter a valid email address')
+    .max(160, 'Email must be 160 characters or less'),
+  password: z
+    .string()
+    .min(6, 'Password must be at least 6 characters long'),
+  role: z.enum(['FLEET_MANAGER', 'DRIVER_OPS', 'SAFETY_OFFICER', 'FINANCIAL_ANALYST'], {
+    errorMap: () => ({ message: 'Select an operational role' }),
+  }),
 });
 
-export default function LoginPage() {
+export default function SignUpPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const {
@@ -25,23 +41,41 @@ export default function LoginPage() {
     handleSubmit,
     formState: { errors },
   } = useForm({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    resolver: zodResolver(signUpSchema),
+    defaultValues: {
+      full_name: '',
+      email: '',
+      password: '',
+      role: '',
+    },
   });
 
   const onSubmit = async (data) => {
     setServerError('');
+    setSuccessMsg('');
     setSubmitting(true);
     try {
-      await login(data.email, data.password);
-      navigate('/dashboard', { replace: true });
+      // 1. Submit signup request to POST /auth/register
+      await registerUser(data);
+      setSuccessMsg('Account created successfully! Logging you in...');
+
+      // 2. Perform auto-login with email + password immediately
+      setTimeout(async () => {
+        try {
+          await login(data.email, data.password);
+          navigate('/dashboard', { replace: true });
+        } catch {
+          // If auto-login fails, redirect them to login page
+          navigate('/login', { replace: true });
+        }
+      }, 1000);
+
     } catch (err) {
       const msg =
         err.response?.data?.error ||
         err.response?.data?.message ||
-        'Login failed. Please try again.';
+        'Registration failed. Please try again.';
       setServerError(msg);
-    } finally {
       setSubmitting(false);
     }
   };
@@ -111,24 +145,56 @@ export default function LoginPage() {
           </div>
 
           <h1 className="text-2xl font-semibold text-content-primary mb-1">
-            Sign in to your account
+            Create an account
           </h1>
           <p className="text-sm text-content-muted mb-8">
-            Enter your credentials to access the dashboard
+            Register your credentials and pick your operational role
           </p>
 
           {/* Server error banner */}
           {serverError && (
             <div
-              id="login-error-banner"
-              className="flex items-start gap-3 p-3 mb-6 rounded-[10px] border border-status-retired/40 bg-status-retired-bg text-sm text-red-300"
+              className="flex items-start gap-3 p-3 mb-6 rounded-[10px] border border-status-retired/40 bg-status-retired-bg text-sm text-red-300 animate-fadeIn"
             >
               <AlertCircle className="w-5 h-5 text-status-retired flex-shrink-0 mt-0.5" />
               <span>{serverError}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          {/* Success banner */}
+          {successMsg && (
+            <div
+              className="flex items-start gap-3 p-3 mb-6 rounded-[10px] border border-status-available/40 bg-status-available-bg text-sm text-green-300 animate-fadeIn"
+            >
+              <CheckCircle className="w-5 h-5 text-status-available flex-shrink-0 mt-0.5" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            
+            {/* Full Name */}
+            <div>
+              <label
+                htmlFor="full_name"
+                className="block text-sm font-medium text-content-muted mb-1.5"
+              >
+                Full name
+              </label>
+              <input
+                id="full_name"
+                type="text"
+                autoComplete="name"
+                placeholder="John Doe"
+                {...register('full_name')}
+                className={`w-full h-11 px-3 rounded-[10px] bg-surface-card border text-sm text-content-primary placeholder:text-content-muted/50 outline-none transition-colors
+                  ${errors.full_name ? 'border-status-retired' : 'border-border-hairline focus:border-accent'}`}
+              />
+              {errors.full_name && (
+                <p className="mt-1 text-xs text-status-retired">{errors.full_name.message}</p>
+              )}
+            </div>
+
             {/* Email */}
             <div>
               <label
@@ -163,7 +229,6 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
                   placeholder="••••••••"
                   {...register('password')}
                   className={`w-full h-11 px-3 pr-10 rounded-[10px] bg-surface-card border text-sm text-content-primary placeholder:text-content-muted/50 outline-none transition-colors
@@ -183,18 +248,20 @@ export default function LoginPage() {
               )}
             </div>
 
-            {/* Role (decorative, NOT sent to API) */}
+            {/* Role selection (Sent to API) */}
             <div>
               <label
-                htmlFor="role-display"
+                htmlFor="role"
                 className="block text-sm font-medium text-content-muted mb-1.5"
               >
-                Role <span className="text-content-muted/50">(RBAC)</span>
+                Operational Role <span className="text-content-muted/50">(RBAC)</span>
               </label>
               <select
-                id="role-display"
+                id="role"
                 defaultValue=""
-                className="w-full h-11 px-3 rounded-[10px] bg-surface-card border border-border-hairline text-sm text-content-primary outline-none appearance-none cursor-pointer focus:border-accent"
+                {...register('role')}
+                className={`w-full h-11 px-3 rounded-[10px] bg-surface-card border text-sm text-content-primary outline-none cursor-pointer
+                  ${errors.role ? 'border-status-retired' : 'border-border-hairline focus:border-accent'}`}
               >
                 <option value="" disabled>
                   Select a role…
@@ -205,43 +272,25 @@ export default function LoginPage() {
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-content-muted/60">
-                Your actual role is determined by your account — this field is for display only.
-              </p>
-            </div>
-
-            {/* Remember me + Forgot */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded bg-surface-card border-border-hairline accent-accent"
-                />
-                <span className="text-sm text-content-muted">Remember me</span>
-              </label>
-              <button
-                type="button"
-                className="text-sm text-accent hover:text-accent-hover"
-              >
-                Forgot password?
-              </button>
+              {errors.role && (
+                <p className="mt-1 text-xs text-status-retired">{errors.role.message}</p>
+              )}
             </div>
 
             {/* Submit */}
             <button
-              id="login-submit"
               type="submit"
               disabled={submitting}
               className="w-full h-11 rounded-[10px] bg-accent hover:bg-accent-hover text-white font-semibold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Signing in…' : 'Sign In'}
+              {submitting ? 'Registering account…' : 'Sign Up'}
             </button>
 
-            {/* Register redirection link */}
+            {/* Link to login page */}
             <p className="text-center text-sm text-content-muted pt-2">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-accent font-semibold hover:text-accent-hover">
-                Sign Up
+              Already have an account?{' '}
+              <Link to="/login" className="text-accent font-semibold hover:text-accent-hover">
+                Sign In
               </Link>
             </p>
           </form>
