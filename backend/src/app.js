@@ -13,6 +13,10 @@ const maintenanceRoutes = require('./modules/maintenance/maintenance.routes');
 const fuelExpensesRoutes = require('./modules/fuel-expenses/fuel-expenses.routes');
 const dashboardRoutes = require('./modules/dashboard/dashboard.routes');
 const reportsRoutes = require('./modules/reports/reports.routes');
+const analyticsRoutes = require('./modules/analytics/analytics.routes');
+const reportsPdfRoutes = require('./modules/reports/reports.pdf.routes');
+const notificationsRoutes = require('./modules/notifications/notifications.routes');
+const vehicleDocumentsRoutes = require('./modules/vehicle-documents/vehicle-documents.routes');
 
 const app = express();
 
@@ -37,6 +41,10 @@ app.use('/api/v1/trips', tripsRoutes);
 app.use('/api/v1/maintenance', maintenanceRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/reports/export/pdf', reportsPdfRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api', vehicleDocumentsRoutes);
 
 // Mounting fuel and expenses router directly to api/v1 because it serves /fuel-logs and /expenses
 app.use('/api/v1', fuelExpensesRoutes);

@@ -2,6 +2,8 @@ require('dotenv').config();
 const app = require('./app');
 const prisma = require('./config/db');
 
+require('./utils/monkeyPatch'); require('./jobs/licenseExpiryJob').start();
+
 const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {

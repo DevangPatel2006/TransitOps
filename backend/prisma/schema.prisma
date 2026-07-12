@@ -105,6 +105,7 @@ model Vehicle {
   maintenance_logs  MaintenanceLog[]
   fuel_logs         FuelLog[]
   expenses          Expense[]
+  vehicle_documents VehicleDocument[]
 
   @@index([status], name: "idx_vehicles_status")
   @@index([type, region], name: "idx_vehicles_type_region")
@@ -122,6 +123,7 @@ model Driver {
   status           DriverStatus @default(AVAILABLE)
   created_at       DateTime     @default(now()) @db.Timestamptz
   trips            Trip[]
+  license_reminder_logs LicenseReminderLog[]
 
   @@index([status], name: "idx_drivers_status")
   @@index([license_expiry], name: "idx_drivers_license_expiry")
@@ -195,4 +197,38 @@ model Expense {
 
   @@index([vehicle_id], name: "idx_expenses_vehicle")
   @@map("expenses")
+}
+
+enum DocType {
+  INSURANCE
+  RC
+  PERMIT
+  PUC
+  OTHER
+
+  @@map("doc_type")
+}
+
+model LicenseReminderLog {
+  reminder_id Int      @id @default(autoincrement())
+  driver_id   Int
+  driver      Driver   @relation(fields: [driver_id], references: [driver_id], onDelete: Cascade)
+  days_before Int
+  sent_at     DateTime @default(now()) @db.Timestamptz
+
+  @@map("license_reminder_logs")
+}
+
+model VehicleDocument {
+  document_id Int      @id @default(autoincrement())
+  vehicle_id  Int
+  vehicle     Vehicle  @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: Cascade)
+  doc_type    DocType
+  file_name   String   @db.VarChar(255)
+  file_path   String   @db.VarChar(500)
+  issue_date  DateTime @db.Date
+  expiry_date DateTime @db.Date
+  uploaded_at DateTime @default(now()) @db.Timestamptz
+
+  @@map("vehicle_documents")
 }

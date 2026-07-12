@@ -8,3 +8,7 @@ build/
 # Prisma
 *.db
 *.db-journal
+
+# Uploads
+uploads/
+
