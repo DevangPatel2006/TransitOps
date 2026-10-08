@@ -12,12 +12,20 @@ const register = async (userData) => {
     throw new ApiError(409, 'Email already registered');
   }
 
-  // Find role
+  // Find or initialize role
   let dbRole;
   if (role_id) {
     dbRole = await prisma.role.findUnique({ where: { role_id } });
   } else if (role) {
-    dbRole = await prisma.role.findUnique({ where: { name: role } });
+    try {
+      dbRole = await prisma.role.upsert({
+        where: { name: role },
+        update: {},
+        create: { name: role },
+      });
+    } catch (_) {
+      dbRole = await prisma.role.findUnique({ where: { name: role } });
+    }
   }
 
   if (!dbRole) {

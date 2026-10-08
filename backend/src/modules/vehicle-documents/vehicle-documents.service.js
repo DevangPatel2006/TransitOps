@@ -1,6 +1,6 @@
-const fs = require('fs');
 const prisma = require('../../config/db');
 const ApiError = require('../../utils/ApiError');
+const storageService = require('../../utils/storageService');
 
 const uploadDocument = async (vehicleId, file, body) => {
   const { doc_type, issue_date, expiry_date } = body;
@@ -9,23 +9,22 @@ const uploadDocument = async (vehicleId, file, body) => {
     where: { vehicle_id: vehicleId },
   });
   if (!vehicle) {
-    // Cleanup uploaded file on error
-    if (file && fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
-    }
     throw new ApiError(404, 'Vehicle not found');
   }
 
-  if (!file) {
+  if (!file || !file.buffer) {
     throw new ApiError(400, 'No document file uploaded');
   }
+
+  // Upload to persistent object storage (Cloudinary or local fallback)
+  const uploadResult = await storageService.uploadDocument(file.buffer, file.originalname, file.mimetype);
 
   return await prisma.vehicleDocument.create({
     data: {
       vehicle_id: vehicleId,
       doc_type,
-      file_name: file.originalname,
-      file_path: file.path,
+      file_name: uploadResult.fileName,
+      file_path: uploadResult.filePath,
       issue_date,
       expiry_date,
     },
@@ -59,18 +58,13 @@ const getDocumentById = async (docId) => {
 const deleteDocument = async (docId) => {
   const doc = await getDocumentById(docId);
 
+  // Remove the file from cloud storage or local disk
+  await storageService.deleteDocument(doc.file_path);
+
+  // Delete from database
   await prisma.vehicleDocument.delete({
     where: { document_id: docId },
   });
-
-  // Delete physical file
-  try {
-    if (fs.existsSync(doc.file_path)) {
-      fs.unlinkSync(doc.file_path);
-    }
-  } catch (err) {
-    console.error(`Failed to delete file on disk at ${doc.file_path}:`, err.message);
-  }
 
   return { message: 'Document deleted successfully' };
 };

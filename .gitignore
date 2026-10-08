@@ -10,3 +10,14 @@
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Build and dependencies
+node_modules/
+dist/
+build/
+

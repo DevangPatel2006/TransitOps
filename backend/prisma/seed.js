@@ -1,10 +1,25 @@
+/**
+ * TransitOps Database Seed Script
+ * 
+ * WARNING: This script is intended strictly for local development and demo environments.
+ * It deletes all existing database data before inserting initial demo records.
+ * DO NOT RUN THIS SCRIPT AGAINST PRODUCTION (e.g. Neon production database).
+ */
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Clearing database...');
+  if (process.env.NODE_ENV === 'production') {
+    console.error('================================================================');
+    console.error('[CRITICAL] Destructive seed execution BLOCKED: NODE_ENV=production');
+    console.error('This script wipes database records and is disabled in production.');
+    console.error('================================================================');
+    throw new Error('Database seeding with data wipe is disabled in production environments.');
+  }
+
+  console.log('Clearing database (development only)...');
   // Delete in reverse order of foreign key dependencies checked
   await prisma.expense.deleteMany({});
   await prisma.fuelLog.deleteMany({});

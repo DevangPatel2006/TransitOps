@@ -17,26 +17,31 @@ const router = express.Router();
 
 router.use(authenticate);
 
-// Configure multer storage
-const uploadDir = path.join(__dirname, '../../../uploads/vehicle-docs');
+const ApiError = require('../../utils/ApiError');
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  },
-});
+// Memory storage for persistent cloud uploads without local disk dependency
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.webp'];
+    const allowedMimeTypes = [
+      'application/pdf',
+      'image/png',
+      'image/jpeg',
+      'image/jpg',
+      'image/webp',
+    ];
+
+    if (allowedExtensions.includes(ext) && allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new ApiError(400, 'Invalid file type. Only PDF and image files (PNG, JPG, WEBP) are allowed.'));
+    }
+  },
 });
 
 // Routes

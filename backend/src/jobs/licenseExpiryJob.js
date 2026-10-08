@@ -2,13 +2,25 @@ const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const prisma = require('../config/db');
 
+const isSmtpConfigured = () => {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!host || !user || !pass) return false;
+  if (user === 'smtp_user_placeholder' || pass === 'smtp_pass_placeholder') return false;
+  return true;
+};
+
 const getTransporter = () => {
+  const port = Number(process.env.SMTP_PORT) || 2525;
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.mailtrap.io',
-    port: Number(process.env.SMTP_PORT) || 2525,
+    port,
+    secure: port === 465,
     auth: {
-      user: process.env.SMTP_USER || 'smtp_user_placeholder',
-      pass: process.env.SMTP_PASS || 'smtp_pass_placeholder',
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
     },
   });
 };
@@ -19,12 +31,24 @@ const sendExpiryEmail = async (driver, daysBefore) => {
     return true;
   }
 
-  const adminEmails = process.env.ADMIN_EMAILS || 'admin@transitops.com';
-  const transporter = getTransporter();
+  if (!isSmtpConfigured()) {
+    console.warn(
+      `[LicenseExpiryJob] SMTP is not configured or using default placeholders. Alert skipped for driver: ${driver.full_name} (${daysBefore} days left). Set SMTP_HOST, SMTP_USER, SMTP_PASS to enable email alerts.`
+    );
+    return false;
+  }
+
+  const rawAdminEmails = process.env.ADMIN_EMAILS || 'admin@transitops.com';
+  const recipientList = rawAdminEmails
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean);
+
+  const sender = process.env.SMTP_FROM || '"TransitOps Safety Alerts" <no-reply@transitops.com>';
 
   const mailOptions = {
-    from: '"TransitOps Safety Alerts" <no-reply@transitops.com>',
-    to: adminEmails,
+    from: sender,
+    to: recipientList,
     subject: `CRITICAL: Driver license expiring in ${daysBefore} days - ${driver.full_name}`,
     text: `Driver ${driver.full_name} (ID: ${driver.driver_id}) has a license (${driver.license_number}) expiring on ${driver.license_expiry.toISOString().split('T')[0]}.\nDays remaining: ${daysBefore}.\nPlease initiate the renewal process immediately.`,
     html: `
@@ -38,8 +62,9 @@ const sendExpiryEmail = async (driver, daysBefore) => {
   };
 
   try {
+    const transporter = getTransporter();
     const info = await transporter.sendMail(mailOptions);
-    console.log(`[LicenseExpiryJob] Notification email sent successfully: ${info.messageId}`);
+    console.log(`[LicenseExpiryJob] Notification email sent successfully to ${recipientList.join(', ')}: ${info.messageId}`);
     return true;
   } catch (error) {
     console.error(`[LicenseExpiryJob] Failed to send email alert for driver ${driver.full_name}:`, error.message);

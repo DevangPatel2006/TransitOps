@@ -1,7 +1,6 @@
-const path = require('path');
-const fs = require('fs');
 const asyncHandler = require('../../utils/asyncHandler');
 const vehicleDocumentsService = require('./vehicle-documents.service');
+const storageService = require('../../utils/storageService');
 const ApiError = require('../../utils/ApiError');
 
 const uploadDocument = asyncHandler(async (req, res) => {
@@ -19,12 +18,7 @@ const getDocumentsForVehicle = asyncHandler(async (req, res) => {
 const downloadDocument = asyncHandler(async (req, res) => {
   const docId = Number(req.params.docId);
   const doc = await vehicleDocumentsService.getDocumentById(docId);
-
-  if (!fs.existsSync(doc.file_path)) {
-    throw new ApiError(404, 'Physical file not found on disk');
-  }
-
-  res.download(doc.file_path, doc.file_name);
+  await storageService.streamDocumentToResponse(doc, res);
 });
 
 const deleteDocument = asyncHandler(async (req, res) => {

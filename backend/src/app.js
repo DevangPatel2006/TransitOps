@@ -18,17 +18,69 @@ const reportsPdfRoutes = require('./modules/reports/reports.pdf.routes');
 const notificationsRoutes = require('./modules/notifications/notifications.routes');
 const vehicleDocumentsRoutes = require('./modules/vehicle-documents/vehicle-documents.routes');
 
+require('./utils/monkeyPatch');
+const prisma = require('./config/db');
+
 const app = express();
 
 // Security HTTP headers
 app.use(helmet());
 
-// Enable CORS
+// Production-safe CORS supporting multiple origins
+const rawFrontendUrls = process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:3000';
+const allowedOrigins = rawFrontendUrls
+  .split(',')
+  .map((url) => url.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow non-browser requests (like health checks, server-to-server, curl)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const normalizedOrigin = origin.trim().replace(/\/+$/, '');
+    const isAllowed = allowedOrigins.some((allowed) => {
+      if (allowed === normalizedOrigin) return true;
+      // Support subdomain wildcard patterns e.g. *.vercel.app if configured
+      if (allowed.startsWith('*.') && normalizedOrigin.endsWith(allowed.slice(1))) return true;
+      return false;
+    });
+
+    if (isAllowed) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS error: Origin ${origin} not allowed`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
+
+// Unauthenticated health check endpoint for Render and uptime monitoring
+app.get('/health', async (req, res) => {
+  try {
+    // Quick, lightweight database connectivity verification
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({
+      status: 'ok',
+      service: 'transitops-backend',
+      database: 'connected',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'degraded',
+      service: 'transitops-backend',
+      database: 'disconnected',
+      error: error.message,
+    });
+  }
+});
 
 // Parse json request body
 app.use(express.json());
